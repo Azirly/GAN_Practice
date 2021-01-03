@@ -1,5 +1,7 @@
 # on python 3.8.5 AKA python38
 
+
+# tensorboard --logdir="\Gan_Project\GAN_Practice"
 import numpy as np
 import torch
 import torchvision
@@ -92,6 +94,8 @@ class Discriminator(nn.Module):
         return torch.sigmoid(self.fc4(x))
 
 
+TBLOGDIR=r"C:\Users\\Documents\CS Side Projects\Machine Learning Chris\Gan_Project\GAN_Practice\GAN_Training_Details\{}".format(get_start_time())
+
 # Tensorboard Logging
 writer = SummaryWriter(log_dir=TBLOGDIR)
 
@@ -115,65 +119,66 @@ def gener_loss_g(discrim_gen_samples, num_images):
     return bceloss(discrim_gen_samples, true)
 
 
-def train(num_samples, trainloader):
+def train(n_epoch, num_samples, trainloader):
     # Initialize discriminator and generator
     D = Discriminator(mnist_dim)
     G = Generator(g_input_dim=num_samples, g_output_dim= mnist_dim)
 
     # optimizers
-    lr_G = 0.00022
-    lr_D = 0.00025 
+    lr_G = 0.00023
+    lr_D = 0.00025
     G_optimizer = optim.Adam(G.parameters(), lr = lr_G)
     D_optimizer = optim.Adam(D.parameters(), lr = lr_D)
 
-    # Training Loop
-    for ts, (images, _ ) in enumerate(trainloader):
-        # Discriminator loss for D
-        test_image = images
-        images = Variable(images.view(-1, mnist_dim))
+    for epoch in range(1, n_epoch+1):  
+        # Training Loop
+        print("Epoch number: ", epoch)
+        for ts, (images, _ ) in enumerate(trainloader):
+            # Discriminator loss for D
+            test_image = images
+            images = Variable(images.view(-1, mnist_dim))
 
-        disc_tensors = D(images)
-        # print(disc_tensors)p
-        print("iteration is: ", ts)
-        disc_loss = discrim_loss_d(disc_tensors, num_samples)
-        # Generator Loss for D
-        
-        m_samples = Variable(torch.normal(mean=torch.zeros(num_samples, num_samples), std=torch.ones(num_samples, num_samples) ))
-        # print(m_samples)
-        x_fake = G(m_samples)
-        # y_fake = torch.zeros(num_samples, 1)
+            disc_tensors = D(images)
+            # print(disc_tensors)p
+            print("Epoch number: {}, iteration is: {}".format(epoch,ts))
+            disc_loss = discrim_loss_d(disc_tensors, num_samples)
+            # Generator Loss for D
+            
+            m_samples = Variable(torch.normal(mean=torch.zeros(num_samples, num_samples), std=torch.ones(num_samples, num_samples) ))
+            # print(m_samples)
+            x_fake = G(m_samples)
+            # y_fake = torch.zeros(num_samples, 1)
 
-        gen_tensors = D ( x_fake )
-        gen_loss = gener_loss_d(gen_tensors, num_samples)
+            gen_tensors = D ( x_fake )
+            gen_loss = gener_loss_d(gen_tensors, num_samples)
 
-        # Updating Discriminator
-        D.zero_grad()
-        total_disc = (disc_loss + gen_loss)/2
-        total_disc.backward()
-        D_optimizer.step()
+            # Updating Discriminator
+            D.zero_grad()
+            total_disc = (disc_loss + gen_loss)/2
+            total_disc.backward()
+            D_optimizer.step()
 
-        # Updating Generator
-        G.zero_grad()
-        x_fake_2 = G(m_samples)
-        gen_tensors_2 = D ( x_fake_2 )
-        G_loss = gener_loss_g(gen_tensors_2, num_samples)
-        G_loss.backward()
-        G_optimizer.step()
+            # Updating Generator
+            G.zero_grad()
+            x_fake_2 = G(m_samples)
+            gen_tensors_2 = D ( x_fake_2 )
+            G_loss = gener_loss_g(gen_tensors_2, num_samples)
+            G_loss.backward()
+            G_optimizer.step()
 
-        writer.add_scalar("AverageDiscrimFalse", torch.mean(D(G(m_samples))).detach(), ts ) #want to be 50%, feed bad image, but says it is true
-        writer.add_scalar("AverageDiscrimTrue", torch.mean(D(images)), ts ) #want to be 1, feed an image and checks that it is true
+            # writer.add_scalar("AverageDiscrimFalse", torch.mean(D(G(m_samples))).detach(), ts ) #want to be 50%, feed bad image, but says it is true
+            # writer.add_scalar("AverageDiscrimTrue", torch.mean(D(images)), ts ) #want to be 1, feed an image and checks that it is true
 
-        if ts %20 == 0:
-            test_z = Variable(torch.randn(num_samples, num_samples))
-            generated = G(test_z)
-            writer.add_image("gan forward", generated.view(num_samples, 1, 28, 28)[0], ts )
-            writer.add_image("sample image", test_image[0], ts )
+        test_z = Variable(torch.randn(num_samples, num_samples))
+        generated = G(test_z)
+        writer.add_image("gan forward", generated.view(num_samples, 1, 28, 28)[0], epoch )
+        writer.add_image("sample image", test_image[0], epoch )
 
 if __name__ == "__main__":  
-    print(mnist_dim)
+    # print(mnist_dim)
 
     true_bs = 32
     trainloader = torch.utils.data.DataLoader(mnist_trainset, batch_size=true_bs, shuffle=True)
     testloader = torch.utils.data.DataLoader(mnist_testset, batch_size=true_bs, shuffle=True)
 
-    train(true_bs, trainloader)
+    train(100, true_bs, trainloader)
